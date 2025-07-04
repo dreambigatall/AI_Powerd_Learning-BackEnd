@@ -25,4 +25,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.get-token.js
+get-token.js
