@@ -323,6 +323,25 @@ const generateQuizForMaterial = async (req, res) => {
   }
 };
 
+const getMaterialById = async (req, res) => {
+  try {
+    const material = await Material.findById(req.params.id)
+      .populate('generatedContent');
+
+    if (!material) {
+      return res.status(404).json({ message: 'Material not found' });
+    }
+    // Security check
+    if (material.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    res.status(200).json(material);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
 // Make sure to export the new createMaterial and the updated summarizeMaterial
 module.exports = {
   createMaterial,
@@ -332,4 +351,5 @@ module.exports = {
   deleteMaterial,
   getMaterialsWithContent,
   generateQuizForMaterial,
+  getMaterialById,
 };

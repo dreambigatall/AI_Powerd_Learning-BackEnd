@@ -8,6 +8,7 @@ const {
   deleteMaterial,
   getMaterialsWithContent,
   generateQuizForMaterial,
+  getMaterialById,
 } = require('../controllers/materialController');
 const { protect } = require('../middleware/auth');
 
@@ -31,6 +32,7 @@ router.route('/:id/content')
 .get(getGeneratedContentForMaterial);
 
 router.route('/:id')
+  .get(getMaterialById)
   .delete(deleteMaterial);
 
 

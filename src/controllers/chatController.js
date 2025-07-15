@@ -1,14 +1,18 @@
+
+// src/controllers/chatController.js
 const Material = require('../models/Material');
 const { downloadFile } = require('../services/supabaseService');
 const { parseFileContent } = require('../services/fileParserService');
 const { answerQuestionFromContext } = require('../services/geminiService');
 
-// @desc   Ask a question about a specific material
+// @desc   Ask a question about a specific material, considering chat history
 // @route  POST /api/chat/:materialId
 // @access Private
 const askQuestion = async (req, res) => {
   try {
-    const { question } = req.body;
+    // Destructure `question` and `history` from the request body.
+    const { question, history } = req.body;
+
     if (!question) {
       return res.status(400).json({ message: 'A question is required.' });
     }
@@ -16,18 +20,22 @@ const askQuestion = async (req, res) => {
     const material = await Material.findById(req.params.materialId);
 
     // Security & Existence Checks
-    if (!material) return res.status(404).json({ message: 'Material not found' });
-    if (material.user.toString() !== req.user.id) return res.status(401).json({ message: 'User not authorized' });
+    if (!material) {
+      return res.status(404).json({ message: 'Material not found' });
+    }
+    if (material.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
 
-    // Download and Parse File to get the context
+    // Download and Parse File to get the context for the conversation
     const fileBuffer = await downloadFile('materials', material.storagePath);
     const contextText = await parseFileContent(fileBuffer, material.fileType);
 
-    // Call the AI service with the context and the user's question
-    const answer = await answerQuestionFromContext(contextText, question);
+    // Call the updated AI service with the context, history, and the new question.
+    // We provide an empty array as a fallback if no history is sent.
+    const answer = await answerQuestionFromContext(contextText, history || [], question);
 
-    // We don't save the chat history for now (that's a v2 feature).
-    // We just return the answer directly.
+    // The response remains the same: just the new answer.
     res.status(200).json({ answer });
 
   } catch (error) {
