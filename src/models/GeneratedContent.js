@@ -14,7 +14,7 @@ const generatedContentSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['summary', 'questions', 'flashcards'], // We can add more later
+    enum: ['summary', 'questions', 'flashcards', 'chat'], // We can add more later
   },
   content: {
     type: String, // The actual AI-generated text

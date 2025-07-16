@@ -9,6 +9,7 @@ const {
   getMaterialsWithContent,
   generateQuizForMaterial,
   getMaterialById,
+  saveChatSession,
 } = require('../controllers/materialController');
 const { protect } = require('../middleware/auth');
 
@@ -38,5 +39,10 @@ router.route('/:id')
 
   router.route('/:id/generate-quiz')
   .post(generateQuizForMaterial);
+
+
+  router.route('/:id/save-chat')
+  .post(saveChatSession);
+
 
 module.exports = router;

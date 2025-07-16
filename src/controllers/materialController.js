@@ -44,46 +44,6 @@ const getMaterials = async (req, res) => {
   };
   
 
-// @desc   Generate a summary for a specific material FROM A FILE
-// @route  POST /api/materials/:id/summarize
-// @access Private
-// const summarizeMaterial = async (req, res) => {
-//   try {
-//     const material = await Material.findById(req.params.id);
-
-//     if (!material) {
-//       return res.status(404).json({ message: 'Material not found' });
-//     }
-//     if (material.user.toString() !== req.user.id) {
-//       return res.status(401).json({ message: 'User not authorized' });
-//     }
-
-//     // STEP 1: Download the file from Supabase Storage
-//     const fileBuffer = await downloadFile('materials', material.storagePath);
-
-//     // STEP 2: Parse the file buffer to extract text
-//     const extractedText = await parseFileContent(fileBuffer, material.fileType);
-    
-//     if (!extractedText || extractedText.trim() === '') {
-//         return res.status(400).json({ message: 'Could not extract text from the file or file is empty.' });
-//     }
-
-//     // STEP 3: Call our AI service with the extracted text
-//     const summaryText = await generateSummary(extractedText);
-
-//     // STEP 4: Save the generated summary
-//     const summary = await GeneratedContent.create({
-//       material: material._id,
-//       user: req.user.id,
-//       type: 'summary',
-//       content: summaryText,
-//     });
-
-//     res.status(201).json(summary);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Server Error', error: error.message });
-//   }
-// };
 
 // @desc   Generate a summary for a specific material FROM A FILE
 // @route  POST /api/materials/:id/summarize
@@ -342,6 +302,51 @@ const getMaterialById = async (req, res) => {
   }
 };
 
+/**
+ * @desc   Save a chat session for a material. Creates a new one or updates an existing one.
+ * @route  POST /api/materials/:id/save-chat
+ * @access Private
+ */
+const saveChatSession = async (req, res) => {
+  try {
+    const { chatContent } = req.body; // Expecting a stringified JSON array of messages from the frontend
+
+    if (!chatContent) {
+      return res.status(400).json({ message: 'Chat content is required.' });
+    }
+
+    // Standard security checks
+    const material = await Material.findById(req.params.id);
+    if (!material) {
+      return res.status(404).json({ message: 'Material not found' });
+    }
+    if (material.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    // Use findOneAndUpdate with upsert to be efficient.
+    // This will find an existing saved chat for this material and update it,
+    // OR if one doesn't exist, it will create it.
+    const savedChat = await GeneratedContent.findOneAndUpdate(
+      { material: req.params.id, type: 'chat' }, // The query to find the document
+      {
+        user: req.user.id,
+        content: chatContent, // The content to save/update
+        type: 'chat',
+      },
+      {
+        new: true,    // Return the updated or newly created document
+        upsert: true, // Create the document if it doesn't exist
+      }
+    );
+
+    res.status(201).json(savedChat);
+  } catch (error) {
+    console.error("Error saving chat session:", error);
+    res.status(500).json({ message: 'Server Error while saving chat', error: error.message });
+  }
+};
+
 // Make sure to export the new createMaterial and the updated summarizeMaterial
 module.exports = {
   createMaterial,
@@ -352,4 +357,5 @@ module.exports = {
   getMaterialsWithContent,
   generateQuizForMaterial,
   getMaterialById,
+  saveChatSession,
 };
