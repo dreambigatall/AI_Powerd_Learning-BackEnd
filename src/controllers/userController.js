@@ -29,44 +29,6 @@ const getMe = async (req, res) => {
 };
 
 
-const syncSupabaseUser = async (req, res) => {
-  // 1. Secure the endpoint
-  const providedSecret = req.headers['x-supabase-webhook-secret'];
-  if (providedSecret !== process.env.SUPABASE_WEBHOOK_SECRET) {
-    console.warn('Unauthorized webhook attempt');
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  // 2. Process the user data from Supabase
-  try {
-    const { record: userRecord } = req.body;
-    if (req.body.type !== 'INSERT' || !userRecord) {
-      return res.status(200).json({ message: 'Event ignored' });
-    }
-
-    const { id: authId, email } = userRecord;
-
-    if (!authId || !email) {
-      console.warn('Webhook received but authId or email is missing.', { authId, email });
-      return res.status(400).json({ message: 'User ID and email are required.' });
-    }
-
-    // 3. Create the user in MongoDB
-    // Use findOneAndUpdate with upsert to prevent duplicates if the hook ever fires twice
-    await User.findOneAndUpdate(
-      { authId: authId },
-      { $setOnInsert: { email: email, authId: authId } },
-      { upsert: true, new: true }
-    );
-    
-    console.log(`[Webhook] User ${email} synced successfully.`);
-    return res.status(200).json({ message: 'User synced successfully.' });
-
-  } catch (error) {
-    console.error('[Webhook] Error syncing user:', error);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
 
 
-module.exports = { registerUser, getMe,syncSupabaseUser  };
+module.exports = { registerUser, getMe };
