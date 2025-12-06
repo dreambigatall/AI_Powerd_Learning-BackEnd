@@ -1,6 +1,6 @@
 const Material = require('../models/Material');
 const GeneratedContent = require('../models/GeneratedContent');
-const { generateSummary, generateQuiz } = require('../services/geminiService');
+const { generateSummary, generateQuiz, explainHardConcepts } = require('../services/geminiService');
 const { downloadFile, supabaseAdmin } = require('../services/supabaseService'); // <-- Import
 const { parseFileContent } = require('../services/fileParserService'); // <-- Import
 
@@ -347,6 +347,87 @@ const saveChatSession = async (req, res) => {
   }
 };
 
+/**
+ * @desc   Identify and explain difficult concepts from an uploaded document in a preferred language
+ * @route  POST /api/materials/:id/explain-concepts
+ * @access Private
+ */
+const explainConcepts = async (req, res) => {
+  try {
+    const material = await Material.findById(req.params.id);
+
+    // Security & Existence Checks
+    if (!material) {
+      return res.status(404).json({ message: 'Material not found' });
+    }
+    if (material.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    // Get language preference from request body (default: English)
+    const { language = 'English' } = req.body;
+
+    // Check if concept explanations already exist (caching)
+    const existingExplanations = await GeneratedContent.findOne({
+      material: req.params.id,
+      type: 'concept-explanation',
+    });
+
+    if (existingExplanations) {
+      // If explanations exist but language might be different, we still return cached version
+      // For now, we cache regardless of language. If you want language-specific caching,
+      // you could store language in the content or add a separate field
+      console.log('CACHE HIT: Concept explanations already exist for this material.');
+      const parsedContent = JSON.parse(existingExplanations.content);
+      return res.status(200).json({
+        concepts: parsedContent,
+        language: language,
+        cached: true
+      });
+    }
+
+    console.log('CACHE MISS: No concept explanations found. Generating new ones.');
+
+    // Download and Parse File
+    const fileBuffer = await downloadFile('materials', material.storagePath);
+    let extractedText;
+    try {
+      extractedText = await parseFileContent(fileBuffer, material.fileType);
+    } catch (parseError) {
+      console.error('File parsing failed for material:', material._id, parseError.message);
+      return res.status(400).json({ 
+        message: 'Could not process the uploaded file.',
+        error: parseError.message
+      });
+    }
+
+    // Generate concept explanations using AI service
+    const concepts = await explainHardConcepts(extractedText, language);
+
+    // Save the generated explanations to the database
+    const conceptExplanations = await GeneratedContent.create({
+      material: material._id,
+      user: req.user.id,
+      type: 'concept-explanation',
+      content: JSON.stringify(concepts), // Store as JSON string
+    });
+
+    res.status(201).json({
+      concepts: concepts,
+      language: language,
+      cached: false,
+      id: conceptExplanations._id
+    });
+
+  } catch (error) {
+    console.error('Error generating concept explanations:', error);
+    res.status(500).json({ 
+      message: 'Failed to generate concept explanations.', 
+      error: error.message 
+    });
+  }
+};
+
 // Make sure to export the new createMaterial and the updated summarizeMaterial
 module.exports = {
   createMaterial,
@@ -358,4 +439,5 @@ module.exports = {
   generateQuizForMaterial,
   getMaterialById,
   saveChatSession,
+  explainConcepts,
 };

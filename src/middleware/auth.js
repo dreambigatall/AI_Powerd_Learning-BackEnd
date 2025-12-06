@@ -2,6 +2,27 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const protect = async (req, res, next) => {
+  // Check if auth is disabled for testing
+  if (process.env.DISABLE_AUTH === 'true') {
+    console.log('⚠️  WARNING: Authentication is DISABLED (DISABLE_AUTH=true). This should only be used for testing!');
+    
+    // Find or create a test user for bypass mode
+    let testUser = await User.findOne({ email: 'test@test.com' });
+    
+    if (!testUser) {
+      // Create a test user if it doesn't exist
+      testUser = await User.create({
+        authId: 'test-auth-id-bypass',
+        email: 'test@test.com'
+      });
+      console.log('Created test user for auth bypass:', testUser._id);
+    }
+    
+    req.user = testUser;
+    return next();
+  }
+
+  // Normal authentication flow
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {

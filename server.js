@@ -5,6 +5,7 @@ const connectDB = require('./src/config/db');
 const userRoutes = require('./src/routes/userRoutes');
 const materialRoutes = require('./src/routes/materialRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
+const learningPathRoutes = require('./src/routes/learningPathRoutes');
 dotenv.config(); // Load .env variables
 
 connectDB(); // Connect to database
@@ -24,6 +25,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/users', userRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/learning-path', learningPathRoutes);
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

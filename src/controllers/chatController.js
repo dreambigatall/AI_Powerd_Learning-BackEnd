@@ -3,7 +3,7 @@
 const Material = require('../models/Material');
 const { downloadFile } = require('../services/supabaseService');
 const { parseFileContent } = require('../services/fileParserService');
-const { answerQuestionFromContext } = require('../services/geminiService');
+const { answerQuestionFromContext, generalChat } = require('../services/geminiService');
 
 // @desc   Ask a question about a specific material, considering chat history
 // @route  POST /api/chat/:materialId
@@ -44,6 +44,46 @@ const askQuestion = async (req, res) => {
   }
 };
 
+/**
+ * @desc   General chatbot conversation (like ChatGPT) - not tied to any document
+ * @route  POST /api/chat/general
+ * @access Private
+ */
+const generalChatHandler = async (req, res) => {
+  try {
+    // Destructure `message` and `history` from the request body
+    const { message, history = [] } = req.body;
+
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({ message: 'A message is required.' });
+    }
+
+    // Validate history format if provided
+    if (!Array.isArray(history)) {
+      return res.status(400).json({ message: 'History must be an array.' });
+    }
+
+    // Call the general chat service
+    // The frontend is responsible for managing chat history
+    const response = await generalChat(history, message.trim());
+
+    // Return the response
+    // Frontend should append this exchange to its chat history
+    res.status(200).json({ 
+      response: response,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error in general chat handler:', error);
+    res.status(500).json({ 
+      message: 'Failed to get a response.', 
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   askQuestion,
+  generalChatHandler,
 };
